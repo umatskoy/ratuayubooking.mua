@@ -1029,11 +1029,31 @@ function getAutoAddons() {
 
   /* Hairdo Include = 1 per ORANG di paket ber-"hairdo" (bukan sekadar ada/tidak).
      Jadi 2 paket hairdo @1 orang → ×2; 1 paket hairdo 3 orang → ×3.
-     extraOrang 0: hairdo untuk orang yang sama, bukan tambahan orang. */
-  const hairdoQty = selected
-    .filter(r => normalizeText(r.value).includes('hairdo'))
-    .reduce((s, r) => s + (parseInt(r.jumlah, 10) || 1), 0);
-  if (hairdoQty > 0) auto.push({ value: 'Hairdo Include', harga: 0, jumlah: hairdoQty, extraOrang: 0 });
+     extraOrang 0: hairdo untuk orang yang sama, bukan tambahan orang.
+
+     5 Okt 2026: labelnya kini menyebut JENIS paketnya — "Hairdo Wedding Include",
+     "Hairdo Wisuda Include", dst — supaya jelas hairdo itu ikut paket yang mana.
+     Tingkatan paket sengaja dibuang (Gold/Silver/Platinum/Diamond → "Wedding").
+     Satu kategori = SATU baris, qty dijumlahkan. */
+  const HAIRDO_KATEGORI = [
+    [/pendamping\s*wisuda/, 'Pendamping Wisuda'],   // WAJIB sebelum /wisuda/ agar tak tertelan
+    [/wedding/,              'Wedding'],
+    [/engagement/,           'Engagement'],
+    [/prewedd/,              'Prewedd'],
+    [/wisuda/,               'Wisuda'],
+    [/reguler/,              'Reguler'],
+  ];
+  const hairdoPerKategori = new Map();
+  selected.forEach(r => {
+    const v = normalizeText(r.value);
+    if (!v.includes('hairdo')) return;
+    const cocok = HAIRDO_KATEGORI.find(([re]) => re.test(v));
+    // Paket hairdo yang tak cocok kategori apa pun (mis. paket baru) tetap dapat
+    // label lama "Hairdo Include" — jadi tak ada yang hilang.
+    const label = cocok ? `Hairdo ${cocok[1]} Include` : 'Hairdo Include';
+    hairdoPerKategori.set(label, (hairdoPerKategori.get(label) || 0) + (parseInt(r.jumlah, 10) || 1));
+  });
+  hairdoPerKategori.forEach((jumlah, label) => auto.push({ value: label, harga: 0, jumlah, extraOrang: 0 }));
 
   const hasDiamondOrGold = selected.some(r => {
     const v = normalizeText(r.value);
