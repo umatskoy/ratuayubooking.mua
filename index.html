@@ -428,6 +428,39 @@
 }
 .btn-rl-close:hover { background: #bf4570; }
   
+    /* ── Konfirmasi tambahan setelah centang S&K ── */
+    .tnc-overlay {
+      position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,0.55);
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    .tnc-overlay[hidden] { display: none; }   /* wajib: kalah dari display:flex */
+    .tnc-box {
+      background: #fff; border-radius: 16px; padding: 20px; width: 100%;
+      max-width: 470px; max-height: 88vh; overflow-y: auto;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.22); animation: tncUp .2s ease-out;
+    }
+    @keyframes tncUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    .tnc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+    .tnc-head h3 { font-size: 16px; font-weight: 600; color: #1a1a1a; margin: 0; }
+    .tnc-x { border: none; background: transparent; font-size: 24px; line-height: 1; color: #9b9b9b; cursor: pointer; padding: 0 2px; }
+    .tnc-x:hover { color: var(--pink); }
+    .tnc-item {
+      display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+      font-size: 13.5px; line-height: 1.55; color: #3d3d3d;
+      padding: 11px; border: 1px solid #e8e8e8; border-radius: 10px; margin-bottom: 9px;
+    }
+    .tnc-item:hover { border-color: var(--pink); background: var(--pink-light); }
+    .tnc-item input { margin-top: 3px; accent-color: var(--pink); flex-shrink: 0; }
+    .tnc-note {
+      font-size: 12.5px; line-height: 1.6; color: #8a6d3b; background: #fff8e6;
+      border: 1px solid #f2e2b8; border-radius: 10px; padding: 11px; margin: 4px 0 16px;
+    }
+    .tnc-actions { display: flex; gap: 10px; }
+    .tnc-actions button { flex: 1; padding: 12px; border-radius: 10px; font: inherit; font-size: 14px; cursor: pointer; }
+    .tnc-batal { border: 1px solid #ddd; background: #fff; color: #6b6b6b; }
+    .tnc-batal:hover { border-color: #bbb; }
+    .tnc-ok { border: none; background: var(--pink); color: #fff; font-weight: 600; }
+    .tnc-ok:disabled { opacity: .45; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -607,6 +640,24 @@
       </div>
 
     </form>
+
+    <!-- Konfirmasi tambahan, muncul setelah klien mencentang S&K -->
+    <div class="tnc-overlay" id="tncOverlay" hidden>
+      <div class="tnc-box" role="dialog" aria-modal="true" aria-labelledby="tncTitle">
+        <div class="tnc-head">
+          <h3 id="tncTitle">Konfirmasi sebelum booking</h3>
+          <button type="button" class="tnc-x" id="tncClose" aria-label="Tutup">&times;</button>
+        </div>
+        <label class="tnc-item"><input type="checkbox" id="tnc1" /><span id="tncTxt1"></span></label>
+        <label class="tnc-item"><input type="checkbox" id="tnc2" /><span id="tncTxt2"></span></label>
+        <label class="tnc-item"><input type="checkbox" id="tnc3" /><span>Jika pada jadwal <i>reschedule</i> owner atau tim kami tidak <i>available</i>, maka saya menerima konsekuensi <b>DP hangus</b>.</span></label>
+        <p class="tnc-note">Kami sangat menghimbau untuk booking jika <b>tanggal</b> dan <b>jam selesai</b> sudah pasti.</p>
+        <div class="tnc-actions">
+          <button type="button" class="tnc-batal" id="tncCancel">Batal</button>
+          <button type="button" class="tnc-ok" id="tncOk" disabled>Setuju &amp; Lanjutkan</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <footer class="mua-footer">
@@ -1736,6 +1787,49 @@ paketRows.forEach(r => {
       btnExport.innerHTML = origHTML;
     }
   }
+
+  /* ── Konfirmasi tambahan setelah centang S&K ──────────────────────────────
+     Centang S&K membuka modal berisi 3 konfirmasi. Tombol lanjut baru aktif
+     bila KETIGANYA dicentang. Batal/Esc/klik latar = centang S&K ikut dilepas,
+     supaya status centang selalu jujur mencerminkan persetujuan penuh.
+     Nama tenant diisi saat modal DIBUKA (TENANT_NAME baru terisi setelah
+     resolve_tenant selesai, jadi jangan diisi saat halaman dimuat). */
+  (function initKonfirmasiTC() {
+    var cbTC  = document.getElementById('agreeTC');
+    var ov    = document.getElementById('tncOverlay');
+    if (!cbTC || !ov) return;
+    var items = ['tnc1', 'tnc2', 'tnc3'].map(function (id) { return document.getElementById(id); });
+    var btnOk = document.getElementById('tncOk');
+
+    function namaTenant() { return (TENANT_NAME || '').trim() || 'kami'; }
+    function sync() { btnOk.disabled = !items.every(function (c) { return c.checked; }); }
+
+    function buka() {
+      document.getElementById('tncTxt1').textContent =
+        'Saya sudah membaca dan setuju dengan syarat & ketentuan yang tertera di pricelist ' + namaTenant() + '.';
+      document.getElementById('tncTxt2').textContent =
+        'Saya memahami bahwa kesempatan reschedule hanya 1\u00d7, dengan tetap melihat ketersediaan jadwal owner dan Tim ' + namaTenant() + '.';
+      items.forEach(function (c) { c.checked = false; });
+      sync();
+      ov.hidden = false;
+      document.body.style.overflow = 'hidden';
+    }
+    function tutup(setuju) {
+      ov.hidden = true;
+      document.body.style.overflow = '';
+      cbTC.checked = !!setuju;
+    }
+
+    cbTC.addEventListener('change', function () { if (cbTC.checked) buka(); });
+    items.forEach(function (c) { c.addEventListener('change', sync); });
+    btnOk.addEventListener('click', function () { tutup(true); });
+    document.getElementById('tncCancel').addEventListener('click', function () { tutup(false); });
+    document.getElementById('tncClose').addEventListener('click', function () { tutup(false); });
+    ov.addEventListener('click', function (e) { if (e.target === ov) tutup(false); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !ov.hidden) tutup(false);
+    });
+  })();
 </script>
 
 </body>
