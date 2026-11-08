@@ -1381,6 +1381,7 @@ function getAutoAddons() {
     const payload = {
       nama: form.nama.value.trim(),
       wa: form.wa.value.trim(),
+      instagram: form.instagram.value.trim(),
       lokasi: form.lokasi.value.trim(),
       tanggal: form.tanggal.value,
       tanggal_day2: document.getElementById('tanggal_day2').value || '-',
@@ -1410,6 +1411,7 @@ function getAutoAddons() {
         slug: TENANT_SLUG, // server yang resolusi ke tenant_id (6F)
         customer_name: payload.nama || '-',
         phone: teks(payload.wa),
+        instagram: teks(payload.instagram),
         location: teks(payload.lokasi),
         event_date: payload.tanggal || null,
         day2: teks(payload.tanggal_day2),
