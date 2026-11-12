@@ -820,7 +820,8 @@
     { label: 'Reguler Owner Hairdo – Rp 700.000',   value: 'Reguler Owner Hairdo', harga: 700000 },
     { label: 'Self Makeup Class – Rp 850.000',                   value: 'Self Makeup Class',                harga: 850000 },
     { label: 'Pro Class Basic/Wedding – Rp 2.500.000',           value: 'Pro Class Basic/Wedding',          harga: 2500000 },
-    { label: 'Exclusive Private Makeup Class – Rp 4.500.000',    value: 'Exclusive Private Makeup Class',   harga: 4500000 },
+    // dua_hari: cadangan bila price_list gagal — tanpa ini kolom Day 2 hilang justru saat RPC mati.
+    { label: 'Exclusive Private Makeup Class – Rp 4.500.000',    value: 'Exclusive Private Makeup Class',   harga: 4500000, dua_hari: true },
   ];
 
   let ADDON_OPTIONS = [
@@ -883,7 +884,15 @@
     document.getElementById('paket-list').appendChild(row);
     refreshSummary();
   }
-const PAKET_DAY2 = 'Exclusive Private Makeup Class';
+/* Pemicu kolom "Tanggal Day 2" datang dari MASTER PAKET (kolom needs_day2,
+   migrasi 048), diteruskan RPC price_list sebagai `dua_hari`.
+
+   Dulu di sini ada `const PAKET_DAY2 = 'Exclusive Private Makeup Class'`.
+   Tiga alasan itu dibuang: (1) ganti nama paket di Pengaturan dan kolomnya
+   berhenti muncul tanpa error maupun log; (2) nama itu milik SATU tenant tapi
+   tertanam di kode yang dipakai semua tenant; (3) hanya pemilik usaha yang tahu
+   paket kelas mana lagi yang butuh 2 pertemuan — sekarang dia bisa
+   mencentangnya sendiri, tanpa deploy. */
 
 function paketChange(id, val) {
   const r = paketRows.find(r => r.id === id);
@@ -894,7 +903,8 @@ function paketChange(id, val) {
 }
 
 function checkDay2Visibility() {
-  const needsDay2 = paketRows.some(r => r.value === PAKET_DAY2);
+  const needsDay2 = paketRows.some(r =>
+    (PAKET_OPTIONS.find(o => o.value === r.value) || {}).dua_hari === true);
   const wrap = document.getElementById('tanggal-day2-wrap');
   wrap.style.display = needsDay2 ? '' : 'none';
   if (!needsDay2) document.getElementById('tanggal_day2').value = '';
@@ -913,6 +923,9 @@ function hapusPaket(id) {
   document.getElementById('paket-row-' + id)?.remove();
   refreshSummary();
   updateJamMulai();
+  // Hapus paket 2-hari terakhir -> kolom Day 2 ikut hilang & isinya dibersihkan.
+  // Tanpa ini tanggal hari ke-2 yang sudah diketik tetap terkirim.
+  checkDay2Visibility();
   checkDay2Visibility();
 }
   /* ── ADDON ── */
@@ -1230,7 +1243,7 @@ function getAutoAddons() {
       const rows = Array.isArray(resHarga) ? resHarga : [];
       const byKind = (kind) => rows
         .filter(r => r.kind === kind)
-        .map(r => ({ label: fmtLabel(r.nama, Number(r.harga)), value: r.nama, harga: Number(r.harga) }))
+        .map(r => ({ label: fmtLabel(r.nama, Number(r.harga)), value: r.nama, harga: Number(r.harga), dua_hari: r.dua_hari === true }))
         .sort((a, b) => a.value.localeCompare(b.value, 'id'));
 
       const pakets = byKind('paket');
